@@ -7,7 +7,7 @@
 #include <math.h>
 #include <float.h>
 
-// --- Konfiguration ---
+// Konfiguration
 #define SAMPLE_RATE 16000
 #define DURATION_SEC 1
 #define TOTAL_SAMPLES (SAMPLE_RATE * DURATION_SEC) // 16000
@@ -91,7 +91,6 @@ void loop() {
         int32_t current_energy = sum / TOTAL_SAMPLES;
 
         // Hvis energien er lav (stille i lokalet), springer vi ML over!
-        // (Sæt evt. 400 op til 600, hvis den stadig spytter falske gæt ud)
         if (current_energy < 200) { 
             // Flyt bufferen 50% ligesom normalt, men skip ML
             size_t overlap_samples = TOTAL_SAMPLES / 2; 
@@ -105,9 +104,7 @@ void loop() {
             return; // Afbryd og start forfra med at lytte
         }
 
-        // Log.info("Lyd fanget (Energi: %ld)! Udtrækker 819 features...", current_energy);
-
-        int num_frames = 62; // Skal passe med jeres Python output (63 * 13 = 819)
+        int num_frames = 62; // Skal passe med Python output (63 * 13 = 819)
         int step_size = 250; // Skubber vinduet lidt frem ad gangen
 
         // Sliding Window: Udregn MFCC for hver af de 63 små blokke af 512 samples
@@ -130,7 +127,6 @@ void loop() {
 
         float debug_sum = 0;
         for(int i=0; i<10; i++) debug_sum += scaled_features[i];
-        // Log.info("Debug sum: %.2f", debug_sum);
 
         const char* klasser[] = {"On", "Off", "Go", "Stop", "Unknown", "Noise"};
 
@@ -164,7 +160,7 @@ void loop() {
             Log.info("Ignoreret: Gættede på %s, men var kun %.1f%% sikker.", klasser[best_class], max_prob * 100.0f);
         }
 
-        // --- Buffer Logik ---
+        // Buffer Logik
         if (keyword_found) {
             // Vi har lige hørt et ord! Tøm bufferen helt for at undgå at "ekkoet" bliver gættet på næste gang.
             noInterrupts();

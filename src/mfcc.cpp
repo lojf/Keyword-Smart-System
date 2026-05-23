@@ -4,6 +4,7 @@
  * 
  * Denne implementation bruger ARM CMSIS-DSP (arm_rfft_fast_f32) til at 
  * hardware-accelerere FFT-beregningen på Cortex-M processoren.
+ * MFCC implementering er fra https://github.com/ARM-software/ML-KWS-for-MCU/blob/master/Deployment/Source/MFCC/mfcc.cpp
  * ============================================================================
  */
 
