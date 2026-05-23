@@ -1,122 +1,38 @@
-# Keyword-Spotting
+# Keyword-Smart-System
 
-This firmware project was created using [Particle Developer Tools](https://www.particle.io/developer-tools/) and is compatible with all [Particle Devices](https://www.particle.io/devices/).
+Et live Keyword Spotting (KWS) projekt designet til microcontrollere (Particle). Systemet bruger en PDM-mikrofon og et letvægts neuralt netværk (MLP) til at lytte efter og genkende stemmekommandoer i realtid (Edge AI). 
 
-Feel free to replace this README.md file with your own content, or keep it for reference.
+Modellen er i øjeblikket trænet til at genkende 6 klasser: **"On", "Off", "Go", "Stop", "Unknown" og "Noise"**.
 
-## Table of Contents
-- [Introduction](#introduction)
-- [Prerequisites To Use This Template](#prerequisites-to-use-this-repository)
-- [Getting Started](#getting-started)
-- [Particle Firmware At A Glance](#particle-firmware-at-a-glance)
-  - [Logging](#logging)
-  - [Setup and Loop](#setup-and-loop)
-  - [Delays and Timing](#delays-and-timing)
-  - [Testing and Debugging](#testing-and-debugging)
-  - [GitHub Actions (CI/CD)](#github-actions-cicd)
-  - [OTA](#ota)
-  - [Assets](#assets)
-  - [Environment](#environment)
-- [Support and Feedback](#support-and-feedback)
-- [Version](#version)
+## Nøglefunktioner
+* **Real-time Inferens:** Modellen kører 100% lokalt på enheden uden brug af cloud-tjenester.
+* **Energy Gating:** Systemet måler lydniveauet og kører kun Machine Learning-delen, når der rent faktisk er lyd. Det sparer processorkraft og eliminerer falske gæt i et stille rum.
+* **Hardware-Accelereret MFCC:** Udtrækning af lydens fingeraftryk (Mel-Frequency Cepstral Coefficients) bruger ARM CMSIS-DSP, hvilket gør beregningerne lynhurtige på Cortex-M processorer.
+* **Sliding Window:** Sikrer kontinuerlig lytning ved at gemme dele af lydbufferen, så ord ikke bliver klippet over på midten.
+* **Kalibreret Pipeline:** C++ DSP-koden er præcist kalibreret til at matche Python-biblioteket `librosa`, hvilket sikrer, at modellen opfører sig ens under træning og live-brug.
 
-## Introduction
+---
 
-For an in-depth understanding of this project template, please refer to our [documentation](https://docs.particle.io/firmware/best-practices/firmware-template/).
+## Projektstruktur
 
-## Prerequisites To Use This Repository
+Projektet er delt op i to dele: Træning (Python) og Live-kørsel (C++).
 
-To use this software/firmware on a device, you'll need:
+### 1. Machine Learning & Træning (Python)
+* `script.py`: Scriptet læser lydfiler (`.wav`) fra mappen `lyd_data/`, udfører *Data Augmentation* (tidsforskydning og støjtilsætning) for at gøre modellen mere robust, og træner et Multi-Layer Perceptron (MLP) neuralt netværk via Scikit-Learn.
+* **emlearn**: Til sidst konverterer scriptet automatisk den trænede model til en C-header fil (`model.h`), som kan lægges direkte over på microcontrolleren. 
+* Scriptet udregner også StandardScaler-værdier (`scaler_values.h`), så live-lyden normaliseres korrekt.
 
-- A [Particle Device](https://www.particle.io/devices/).
-- Windows/Mac/Linux for building the software and flashing it to a device.
-- [Particle Development Tools](https://docs.particle.io/getting-started/developer-tools/developer-tools/) installed and set up on your computer.
-- Optionally, a nice cup of tea (and perhaps a biscuit).
+### 2. Microcontroller Software (C++)
+* `Keyword-spotting.cpp`: Hovedprogrammet. Styrer PDM-mikrofonen, opsamler lyd (1 sekund, 16000 Hz), kører *Energy Gating*, udtrækker features i et sliding window (63 rammer af 13 MFCC features), og spørger den konverterede model om et gæt.
+* `Mfcc.cpp` / `Mfcc.h`: Indeholder CMSIS-DSP logikken til at omregne rå lydbølger til features.
 
-## Getting Started
+---
 
-1. While not essential, we recommend running the [device setup process](https://setup.particle.io/) on your Particle device first. This ensures your device's firmware is up-to-date and you have a solid baseline to start from.
+## Kom godt i gang
 
-2. If you haven't already, open this project in Visual Studio Code (File -> Open Folder). Then [compile and flash](https://docs.particle.io/getting-started/developer-tools/workbench/#cloud-build-and-flash) your device. Ensure your device's USB port is connected to your computer.
-
-3. Verify the device's operation by monitoring its logging output:
-    - In Visual Studio Code with the Particle Plugin, open the [command palette](https://docs.particle.io/getting-started/developer-tools/workbench/#particle-commands) and choose "Particle: Serial Monitor".
-    - Or, using the Particle CLI, execute:
-    ```
-    particle serial monitor --follow
-    ```
-
-4. Uncomment the code at the bottom of the cpp file in your src directory to publish to the Particle Cloud! Login to console.particle.io to view your devices events in real time.
-
-5. Customize this project! For firmware details, see [Particle firmware](https://docs.particle.io/reference/device-os/api/introduction/getting-started/). For information on the project's directory structure, visit [this link](https://docs.particle.io/firmware/best-practices/firmware-template/#project-overview).
-
-## Particle Firmware At A Glance
-
-### Logging
-
-The firmware includes a [logging library](https://docs.particle.io/reference/device-os/api/logging/logger-class/). You can display messages at different levels and filter them:
-
-```
-Log.trace("This is trace message");
-Log.info("This is info message");
-Log.warn("This is warn message");
-Log.error("This is error message");
-```
-
-### Setup and Loop
-
-Particle projects originate from the Wiring/Processing framework, which is based on C++. Typically, one-time setup functions are placed in `setup()`, and the main application runs from the `loop()` function.
-
-For advanced scenarios, explore our [threading support](https://docs.particle.io/firmware/software-design/threading-explainer/).
-
-### Delays and Timing
-
-By default, the setup() and loop() functions are blocking whilst they run, meaning that if you put in a delay, your entire application will wait for that delay to finish before anything else can run. 
-
-For techniques that allow you to run multiple tasks in parallel without creating threads, checkout the code example [here](https://docs.particle.io/firmware/best-practices/firmware-template/).
-
-(Note: Although using `delay()` isn't recommended for best practices, it's acceptable for testing.)
-
-### Testing and Debugging
-
-For firmware testing and debugging guidance, check [this documentation](https://docs.particle.io/troubleshooting/guides/build-tools-troubleshooting/debugging-firmware-builds/).
-
-### GitHub Actions (CI/CD)
-
-This project provides a YAML file for GitHub, automating firmware compilation whenever changes are pushed. More details on [Particle GitHub Actions](https://docs.particle.io/firmware/best-practices/github-actions/) are available.
-
-### OTA
-
-To learn how to utilize Particle's OTA service for device updates, consult [this documentation](https://docs.particle.io/getting-started/cloud/ota-updates/).
-
-Test OTA with the 'Particle: Cloud Flash' command in Visual Studio Code or the CLI command 'particle flash'!
-
-This firmware supports binary assets in OTA packages, allowing the inclusion of audio, images, configurations, and external microcontroller firmware. More details are [here](https://docs.particle.io/reference/device-os/api/asset-ota/asset-ota/).
-
-### Assets
-
-To include assets in your OTA bundle, create an `assets` folder in your project root and place your files there. These can include audio files, images, configuration files, or firmware for external microcontrollers.
-
-To enable asset OTA, uncomment the following line in `project.properties`:
-```
-assetOtaDir=assets
-```
-
-See the [Asset OTA documentation](https://docs.particle.io/reference/device-os/api/asset-ota) for more details.
-
-### Environment
-
-To bundle environment variables with your firmware, create an `env.json` file in your project root. Uncomment the following line in `project.properties` to enable it:
-```
-env=env.json
-```
-
-See the [Environment documentation](https://docs.particle.io/reference/device-os/api/environment) for more details.
-
-## Support and Feedback
-
-For support or feedback on this template or any Particle products, please join our [community](https://community.particle.io)!
-
-## Version
-
-Template version 1.0.3
+### Træn din egen model
+1. Opret en mappe der hedder `lyd_data/` i projektets rod.
+2. Lav undermapper for hver klasse (f.eks. `On`, `Off`, `Noise`) og læg dine `.wav`-filer (16kHz, 1-sekund) derind.
+3. Kør scriptet for at træne modellen:
+```bash
+   python script.py
