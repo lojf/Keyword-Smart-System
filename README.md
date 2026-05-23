@@ -1,38 +1,38 @@
 # Keyword-Smart-System
 
-Et live Keyword Spotting (KWS) projekt designet til microcontrollere (Particle). Systemet bruger en PDM-mikrofon og et letvægts neuralt netværk (MLP) til at lytte efter og genkende stemmekommandoer i realtid (Edge AI). 
+A live Keyword Spotting (KWS) project designed for microcontrollers (Particle). The system uses a PDM microphone and a lightweight Neural Network (MLP) to listen for and recognize voice commands in real-time (Edge AI). 
 
-Modellen er i øjeblikket trænet til at genkende 6 klasser: **"On", "Off", "Go", "Stop", "Unknown" og "Noise"**.
+The model is currently trained to recognize 6 classes: **"On", "Off", "Go", "Stop", "Unknown", and "Noise"**.
 
-## Nøglefunktioner
-* **Real-time Inferens:** Modellen kører 100% lokalt på enheden uden brug af cloud-tjenester.
-* **Energy Gating:** Systemet måler lydniveauet og kører kun Machine Learning-delen, når der rent faktisk er lyd. Det sparer processorkraft og eliminerer falske gæt i et stille rum.
-* **Hardware-Accelereret MFCC:** Udtrækning af lydens fingeraftryk (Mel-Frequency Cepstral Coefficients) bruger ARM CMSIS-DSP, hvilket gør beregningerne lynhurtige på Cortex-M processorer.
-* **Sliding Window:** Sikrer kontinuerlig lytning ved at gemme dele af lydbufferen, så ord ikke bliver klippet over på midten.
-* **Kalibreret Pipeline:** C++ DSP-koden er præcist kalibreret til at matche Python-biblioteket `librosa`, hvilket sikrer, at modellen opfører sig ens under træning og live-brug.
+## Key Features
+* **Real-time Inference:** The model runs 100% locally on the device without relying on any cloud services.
+* **Energy Gating:** The system continuously measures the ambient audio energy level and skips Machine Learning inference when the room is quiet. This saves processing power and eliminates false positives in silent environments.
+* **Hardware-Accelerated MFCC:** Extracting the audio fingerprints (Mel-Frequency Cepstral Coefficients) utilizes ARM CMSIS-DSP, making calculations extremely fast on Cortex-M processors.
+* **Sliding Window:** Ensures continuous, non-stop listening by shifting and preserving parts of the audio buffer so words aren't accidentally cut in half.
+* **Calibrated Pipeline:** The C++ DSP code is strictly calibrated to match the Python library `librosa`, ensuring the model behaves identically during training and live hardware deployment.
 
 ---
 
-## Projektstruktur
+## Project Structure
 
-Projektet er delt op i to dele: Træning (Python) og Live-kørsel (C++).
+The project is split into two main parts: Training (Python) and Live Deployment (C++).
 
-### 1. Machine Learning & Træning (Python)
-* `script.py`: Scriptet læser lydfiler (`.wav`) fra mappen `lyd_data/`, udfører *Data Augmentation* (tidsforskydning og støjtilsætning) for at gøre modellen mere robust, og træner et Multi-Layer Perceptron (MLP) neuralt netværk via Scikit-Learn.
-* **emlearn**: Til sidst konverterer scriptet automatisk den trænede model til en C-header fil (`model.h`), som kan lægges direkte over på microcontrolleren. 
-* Scriptet udregner også StandardScaler-værdier (`scaler_values.h`), så live-lyden normaliseres korrekt.
+### 1. Machine Learning & Training (Python)
+* `script.py`: This script reads `.wav` audio files from the `lyd_data/` directory, performs *Data Augmentation* (time-shifting and white noise injection) to make the model robust, and trains a Multi-Layer Perceptron (MLP) neural network using Scikit-Learn.
+* **emlearn**: Finally, the script automatically converts the trained model into a C-header file (`model.h`), which can be embedded directly into the microcontroller code.
+* The script also computes the StandardScaler parameters (`scaler_values.h`) to properly normalize the live incoming audio.
 
 ### 2. Microcontroller Software (C++)
-* `Keyword-spotting.cpp`: Hovedprogrammet. Styrer PDM-mikrofonen, opsamler lyd (1 sekund, 16000 Hz), kører *Energy Gating*, udtrækker features i et sliding window (63 rammer af 13 MFCC features), og spørger den konverterede model om et gæt.
-* `Mfcc.cpp` / `Mfcc.h`: Indeholder CMSIS-DSP logikken til at omregne rå lydbølger til features.
+* `Keyword-spotting.cpp`: The main firmware file. It manages the PDM microphone, gathers 1 second of audio at 16000 Hz, runs the *Energy Gating* check, extracts features using a sliding window (62 frames of 13 MFCC features), and feeds them into the embedded model for an instant prediction.
+* `Mfcc.cpp` / `Mfcc.h`: Contains the CMSIS-DSP logic used to convert raw time-domain audio waves into the frequency-domain feature vectors.
 
 ---
 
-## Kom godt i gang
+## Getting Started
 
-### Træn din egen model
-1. Opret en mappe der hedder `lyd_data/` i projektets rod.
-2. Lav undermapper for hver klasse (f.eks. `On`, `Off`, `Noise`) og læg dine `.wav`-filer (16kHz, 1-sekund) derind.
-3. Kør scriptet for at træne modellen:
+### Train your own model
+1. Create a folder named `lyd_data/` in the root of the project.
+2. Create subfolders for each individual class (e.g., `On`, `Off`, `Noise`) and place your 1-second, 16kHz `.wav` files inside them.
+3. Run the script to start the training pipeline:
 ```bash
    python script.py
