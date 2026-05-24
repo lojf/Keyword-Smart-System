@@ -30,9 +30,24 @@ SYSTEM_MODE(AUTOMATIC);
 
 SerialLogHandler logHandler(LOG_LEVEL_INFO);
 
+// LED og Servo Setup
+const int ledPin = D7;       
+const int servoPin = D14;     
+
+Servo minServo;              
+bool ledState = false;        
+bool servoRunning = false;
+int vinkel = 0;
+
 void setup() {
     Serial.begin(115200);
     Particle.variable("kws_live", prediction_string);
+    
+    // LED og Servo setup
+    pinMode(ledPin, OUTPUT);
+    digitalWrite(ledPin, LOW);
+    minServo.attach(servoPin);
+    minServo.write(0);
     
     int err = Microphone_PDM::instance()
         .withOutputSize(Microphone_PDM::OutputSize::SIGNED_16)
@@ -155,6 +170,28 @@ void loop() {
                 snprintf(prediction_string, sizeof(prediction_string), "%s", klasser[best_class]);
                 Particle.publish("keyword_detect", klasser[best_class], PRIVATE);
                 keyword_found = true; // Sæt flag for at vi fandt et ord!
+
+                switch(best_class) {
+                    case 0: // On
+                        digitalWrite(ledPin, HIGH);
+                        ledState = true;
+                        Log.info("LED On!");
+                        break;
+                    case 1: // Off
+                        digitalWrite(ledPin, LOW);
+                        ledState = false;
+                        Log.info("LED Off!");
+                        break;
+                    case 2: // Go
+                        servoRunning = true;
+                        Log.info("Servo started!");
+                        break;
+                    case 3: // Stop
+                        servoRunning = false;
+                        Log.info("Servo stopped!");
+                        break;
+
+                }
             }
         } else {
             Log.info("Ignoreret: Gættede på %s, men var kun %.1f%% sikker.", klasser[best_class], max_prob * 100.0f);
@@ -179,5 +216,27 @@ void loop() {
         }
         
         buffer_ready = false;
+    }
+
+    // SERVO KONTROL
+    static unsigned long lastServoUpdate = 0;
+    static bool sweepingUp = true;
+    
+    if (servoRunning && (millis() - lastServoUpdate > 15)) {
+        if (sweepingUp) {
+            vinkel++;
+            if (vinkel >= 180) {
+                vinkel = 180;
+                sweepingUp = false;
+            }
+        } else {
+            vinkel--;
+            if (vinkel <= 0) {
+                vinkel = 0;
+                sweepingUp = true;
+            }
+        }
+        minServo.write(vinkel);
+        lastServoUpdate = millis();
     }
 }
