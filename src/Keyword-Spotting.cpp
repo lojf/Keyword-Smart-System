@@ -32,7 +32,7 @@ SerialLogHandler logHandler(LOG_LEVEL_INFO);
 
 // LED og Servo Setup
 const int ledPin = D7;       
-const int servoPin = D14;     
+const int servoPin = D1;     
 
 Servo minServo;              
 bool ledState = false;        
@@ -106,7 +106,7 @@ void loop() {
         int32_t current_energy = sum / TOTAL_SAMPLES;
 
         // Hvis energien er lav (stille i lokalet), springer vi ML over!
-        if (current_energy < 200) { 
+        if (current_energy < 800) { 
             // Flyt bufferen 50% ligesom normalt, men skip ML
             size_t overlap_samples = TOTAL_SAMPLES / 2; 
             noInterrupts();
@@ -206,7 +206,7 @@ void loop() {
             // Log.info("Tømmer buffer for at undgå dobbelt-gæt.");
         } else {
             // Intet ord fundet. Rul bufferen 50% videre for ikke at klippe et ord over.
-            size_t overlap_samples = TOTAL_SAMPLES / 4; 
+            size_t overlap_samples = TOTAL_SAMPLES / 2; 
             noInterrupts();
             for(size_t i = 0; i < overlap_samples; i++) {
                 audio_raw_buffer[i] = audio_raw_buffer[i + overlap_samples];
@@ -218,25 +218,17 @@ void loop() {
         buffer_ready = false;
     }
 
-    // SERVO KONTROL
+// Servo Kontrol
     static unsigned long lastServoUpdate = 0;
     static bool sweepingUp = true;
     
-    if (servoRunning && (millis() - lastServoUpdate > 15)) {
-        if (sweepingUp) {
-            vinkel++;
-            if (vinkel >= 180) {
-                vinkel = 180;
-                sweepingUp = false;
-            }
-        } else {
-            vinkel--;
-            if (vinkel <= 0) {
-                vinkel = 0;
-                sweepingUp = true;
-            }
-        }
-        minServo.write(vinkel);
-        lastServoUpdate = millis();
+    if (servoRunning) {
+        minServo.write(180); 
+    } else {
+        // RESET & STOP: 90 grader bremser motoren og stopper den helt!
+        minServo.write(90); 
+        
+        vinkel = 0; 
+        sweepingUp = true; 
     }
 }
